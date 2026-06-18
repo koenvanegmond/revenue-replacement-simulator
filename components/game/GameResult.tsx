@@ -39,10 +39,32 @@ export function GameResult({ card, levers, score, onPlayAgain }: Props) {
   const totalProfit =
     naProfit + score.starProfit + score.plowhorseProfit + score.puzzleProfit + upsellProfit;
 
-  const naAggressive = levers.naAttachRate > AGGRESSIVE_THRESHOLD.naAttachRate || levers.naPairingPrice > AGGRESSIVE_THRESHOLD.naPairingPrice;
-  const upsellAggressive = levers.welcomeConversion > AGGRESSIVE_THRESHOLD.welcomeConversion || levers.dessertAttachRate > AGGRESSIVE_THRESHOLD.dessertAttachRate;
+  // NA strategy feedback: reads strategy + engine outputs, not raw sliders.
+  function getNAFeedback(): string {
+    const { naWarningLevel, naEffectiveAttachRate, naEffectiveChurnRate, naReviewScoreDelta } = score;
+    if (levers.naStrategy === 'bottled') {
+      if (naEffectiveChurnRate > 0.45) {
+        return 'You went commercial bottled, but guests are dropping out mid-meal for free water. Bottled NA wine has a sugar-trap reputation problem in this segment — it doesn\u2019t hold up.';
+      }
+      return 'Commercial bottled NA is low-risk but low-margin. It works as a baseline, but it won\u2019t close the gap on its own — the absolute profit per glass is too thin.';
+    }
+    // in_house
+    if (naWarningLevel === 'critical') {
+      return `In-house production needs skilled labor. You\u2019re understaffed and it shows: fatigue is hurting quality, and your review score dropped ${Math.abs(naReviewScoreDelta).toFixed(1)} points. High margin only works if you actually staff for it.`;
+    }
+    if (naWarningLevel === 'stress') {
+      return 'In-house production is paying off, but staffing is tight. Push a bit more labor budget here before it starts hurting quality.';
+    }
+    if (naEffectiveAttachRate > 0.50) {
+      return 'Strong result: in-house production at a well-staffed level is winning real attach rate at full margin. This is what the thesis means by closing the Silent Grant with NA.';
+    }
+    return 'In-house production is well-staffed and profitable, but you could push price or visibility further before guests start pulling back.';
+  }
+  const naFeedbackText = getNAFeedback();
+  const naAggressive = score.naWarningLevel === 'critical';
+  const naUnused = naProfit < 200;
 
-  const naUnused = Math.abs(levers.naAttachRate - DEFAULT_LEVERS.naAttachRate) < 2 && Math.abs(levers.naPairingPrice - DEFAULT_LEVERS.naPairingPrice) < 2;
+  const upsellAggressive = levers.welcomeConversion > AGGRESSIVE_THRESHOLD.welcomeConversion || levers.dessertAttachRate > AGGRESSIVE_THRESHOLD.dessertAttachRate;
   const upsellUnused = Math.abs(levers.welcomeConversion - DEFAULT_LEVERS.welcomeConversion) < 2 && Math.abs(levers.dessertAttachRate - DEFAULT_LEVERS.dessertAttachRate) < 1;
 
   // Sub-lever (Lever 2) feedback by aggressiveness band — operator language, no jargon.
@@ -76,7 +98,7 @@ export function GameResult({ card, levers, score, onPlayAgain }: Props) {
   );
 
   const feedbacks: { label: string; profit: number; aggressive: boolean; unused: boolean; text?: string }[] = [
-    { label: 'Premium NA Pairing', profit: naProfit, aggressive: naAggressive, unused: naUnused },
+    { label: `NA Strategy — ${levers.naStrategy === 'in_house' ? 'In-House' : 'Bottled'}`, profit: naProfit, aggressive: naAggressive, unused: naUnused, text: naFeedbackText },
     { label: star.label, profit: score.starProfit, aggressive: star.aggressive, unused: star.unused, text: star.text },
     { label: plow.label, profit: score.plowhorseProfit, aggressive: plow.aggressive, unused: plow.unused, text: plow.text },
     { label: puzzle.label, profit: score.puzzleProfit, aggressive: puzzle.aggressive, unused: puzzle.unused, text: puzzle.text },

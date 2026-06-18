@@ -1,4 +1,6 @@
 import { SimulatorState, Step1Results, Step2Results, Step3Results } from './types';
+import { getRestaurantNAProfile } from './restaurant-na-profiles';
+import { calculateNAStrategyOutcome, calculateNABaseline } from './na-strategy-engine';
 
 // ─── Step 1: Baseline financials ─────────────────────────────────────────────
 
@@ -51,19 +53,28 @@ export function calcStep2(s: SimulatorState): Step2Results {
 export function calcStep3(s: SimulatorState): Step3Results {
   const step2 = calcStep2(s);
 
-  // ─── Lever 1 — Premium NA pairing ──────────────────────────────────────────
-  // Non-drinking covers = guests who have shifted away from alcohol by 2030.
-  const nonDrinkingCovers = s.covers * (s.declineRate / 100);
-  const naRatio = s.naAttachRate / 100;
-  const naPairingRevenue = nonDrinkingCovers * naRatio * s.naPairingPrice;
-  const naPairingGross = naPairingRevenue * (s.naPairingMargin / 100);
-  // Wastage rises non-linearly: above ~50% attach, perishable pairings get
-  // opened for tables that don't finish them.
-  const naWastage = Math.pow(naRatio, 1.3) * 12 * nonDrinkingCovers * 0.5;
-  // Sommelier / staff training scaled to the size of the programme (15% of gross),
-  // so it can't exceed the revenue it depends on.
-  const naTraining = naPairingGross * 0.15;
-  const naPairingProfit = naPairingGross - naWastage - naTraining;
+  // ─── Lever 1 — NA Strategy (Bottled vs In-house) ─────────────────────────
+  // NA pairing is a REPLACEMENT product for guests who shifted away from
+  // alcohol — not a product sold to the full cover population. So the engine
+  // is fed the shifted covers (totalCovers × declineRate), not s.covers.
+  // baseAttachRate is calibrated as "% of the shifted target group", per
+  // thesis §2.4.
+  const shiftedCovers = s.covers * (s.declineRate / 100);
+  const naProfile = getRestaurantNAProfile(s.restaurantId);
+  const naOutcome = calculateNAStrategyOutcome({
+    restaurantProfile: naProfile,
+    strategy: s.naStrategy,
+    playerSetPrice: s.naPlayerSetPrice,
+    scheduledLaborHours: s.naScheduledLaborHours,
+    totalCovers: shiftedCovers,
+  });
+  const naBaseline = calculateNABaseline({
+    restaurantProfile: naProfile,
+    totalCovers: shiftedCovers,
+  });
+  const naBaselineProfit = naBaseline.monthlyNAProfit;
+  const naIncrementalProfit = Math.max(0, naOutcome.monthlyNAProfit - naBaselineProfit);
+  const naPairingProfit = naIncrementalProfit;
 
   // ─── Lever 2 — Menu engineering (Kasavana & Smith 1982; Morrison 1996) ─────
   // Three sub-levers. Costs are expressed as a share of food revenue so they
@@ -72,40 +83,54 @@ export function calcStep3(s: SimulatorState): Step3Results {
 
   // 2a. Star Promotion — visual hierarchy + suggestive selling on bestsellers.
   const starAgg = s.starPromotion / 100;
-  const starUpliftPP = starAgg * 1.5;
+  const starUpliftPP = starAgg * 0.35;
   const starGross = step2.foodRevenue * (starUpliftPP / 100);
   const starTraining = step2.foodRevenue * starAgg * 0.001;
-  const starFatigue = step2.foodRevenue * Math.pow(starAgg, 2.5) * 0.015; // bites at high agg
-  const starProfit = starGross - starTraining - starFatigue;
+  const starFatigue = Math.pow(starAgg, 3) * 180;
+  const starProfit = Math.max(0, starGross - starTraining - starFatigue);
 
   // 2b. Plowhorse Re-engineering — recipe redesign + sourcing optimisation.
-  // Biggest headroom (3pp ceiling) because Plowhorses sell volume; quality risk
-  // bites earlier than fatigue does on Stars.
   const plowAgg = s.plowhorseEngineering / 100;
-  const plowUpliftPP = plowAgg * 3.0;
+  const plowUpliftPP = plowAgg * 0.8;
   const plowGross = step2.foodRevenue * (plowUpliftPP / 100);
   const plowDesign = step2.foodRevenue * plowAgg * 0.0015;
-  const plowQuality = step2.foodRevenue * Math.pow(plowAgg, 2.2) * 0.025;
+  const plowQuality = step2.foodRevenue * Math.pow(plowAgg, 1.8) * 0.055;
   const plowhorseProfit = plowGross - plowDesign - plowQuality;
 
   // 2c. Puzzle Activation — storytelling + FOH coaching on high-margin/low-volume items.
   const puzzleAgg = s.puzzleActivation / 100;
-  const puzzleUpliftPP = puzzleAgg * 2.0;
+  const puzzleUpliftPP = puzzleAgg * 0.55;
   const puzzleGross = step2.foodRevenue * (puzzleUpliftPP / 100);
   const puzzleFOH = step2.foodRevenue * puzzleAgg * 0.001;
-  const puzzleComplexity = step2.foodRevenue * Math.pow(puzzleAgg, 2.0) * 0.012;
+  const puzzleComplexity = Math.pow(puzzleAgg, 1.8) * 950;
   const puzzleProfit = puzzleGross - puzzleFOH - puzzleComplexity;
 
-  // Net effective margin uplift in pp (after costs), expressed against food revenue.
-  const additionalFoodProfit = starProfit + plowhorseProfit + puzzleProfit;
+  // 2d. Dog Replacement — one-shot menu redesign, linear logic by design.
+  // Not a continuous optimisation slider: replacing weak items is a single
+  // editorial decision, so the cost/benefit profile stays flat.
+  const dogReplacementRatio = s.dogReplacement / 100;
+  const dogRevenueAffected = step2.foodRevenue * 0.04 * dogReplacementRatio;
+  const dogMarginGainPP = 25;
+  const dogReplacementCost = dogReplacementRatio * (s.covers * 0.35);
+  const dogProfit = Math.max(
+    0,
+    (dogRevenueAffected * dogMarginGainPP) / 100 - dogReplacementCost,
+  );
+
+  const additionalFoodProfit = starProfit + plowhorseProfit + puzzleProfit + dogProfit;
   const totalMarginUpliftPP =
-    step2.foodRevenue > 0 ? (additionalFoodProfit / step2.foodRevenue) * 100 : 0;
+    step2.foodRevenue > 0
+      ? (additionalFoodProfit / step2.foodRevenue) * 100 + dogReplacementRatio * 1.0
+      : 0;
 
   // ─── Lever 3 — Upsell: welcome drink + dessert attach ──────────────────────
   // Moral licensing (Prinsen et al. 2018): the virtuous NA choice licenses indulgence.
   const welcomeDrinkRevenue = s.covers * (s.welcomeConversion / 100) * s.welcomePrice;
   const welcomeGross = welcomeDrinkRevenue * 0.75;
-  const welcomeMarketing = (s.welcomeConversion / 100) * 200;
+  const welcomeRatio = s.welcomeConversion / 100;
+  const welcomeMarketing =
+    welcomeRatio * welcomeDrinkRevenue * 0.20 +
+    Math.pow(welcomeRatio, 2) * welcomeDrinkRevenue * 0.30;
   const welcomeDrinkProfit = welcomeGross - welcomeMarketing;
 
   // Dessert: average €12 plate, 75% gross margin.
@@ -113,20 +138,18 @@ export function calcStep3(s: SimulatorState): Step3Results {
   const dessertGross = additionalDessertRevenue * 0.75;
   const dessertMarketing = (s.dessertAttachRate / 100) * 150;
   const dessertLabor = (s.dessertAttachRate / 100) * 100;
-  // Seat-time opportunity cost: extra dessert course slows turnover at high attach.
-  const dessertSeatTime = Math.pow(s.dessertAttachRate / 10, 1.2) * 80;
+  const dessertRatio = s.dessertAttachRate / 100;
+  const dessertSeatTime = Math.pow(dessertRatio, 1.4) * additionalDessertRevenue * 1.6;
   const additionalDessertProfit =
     dessertGross - dessertMarketing - dessertLabor - dessertSeatTime;
 
   // ─── Lever 3c — Coffee / Tea Service ───────────────────────────────────────
-  // Post-meal espresso/tea is the highest-margin category in the house (~90%).
-  // Light seat-time friction only kicks in above ~70% attach.
   const coffeePrice = 4.5;
-  const coffeeMargin = 0.9;
+  const coffeeMargin = 0.55;
   const coffeeRatio = s.coffeeAttachRate / 100;
   const coffeeRevenue = s.covers * coffeeRatio * coffeePrice;
   const coffeeSeatTimeCost =
-    Math.pow(Math.max(0, coffeeRatio - 0.7), 2) * coffeeRevenue * 0.3;
+    Math.pow(Math.max(0, coffeeRatio - 0.25), 1.6) * coffeeRevenue * 0.90;
   const coffeeProfit = Math.max(0, coffeeRevenue * coffeeMargin - coffeeSeatTimeCost);
 
   const totalInterventionProfit =
@@ -143,20 +166,34 @@ export function calcStep3(s: SimulatorState): Step3Results {
 
   return {
     ...step2,
-    nonDrinkingCovers,
-    naPairingRevenue,
+    // Lever 1
     naPairingProfit,
+    naMonthlyProfit: naOutcome.monthlyNAProfit,
+    naBaselineProfit,
+    naIncrementalProfit,
+    naEffectiveAttachRate: naOutcome.effectiveAttachRate,
+    naEffectiveChurnRate: naOutcome.effectiveChurnRate,
+    naRealisedMargePerGlas: naOutcome.realisedMargePerGlas,
+    naFatigueRate: naOutcome.fatigueRate,
+    naReviewScoreDelta: naOutcome.reviewScoreDelta,
+    naQualityImpactMultiplier: naOutcome.qualityImpactMultiplier,
+    naWarningLevel: naOutcome.warningLevel,
+    naRequiredLaborHours: naOutcome.requiredLaborHours,
+    // Lever 2
     starProfit,
     plowhorseProfit,
     puzzleProfit,
+    dogProfit,
     totalMarginUpliftPP,
     additionalFoodProfit,
+    // Lever 3
     welcomeDrinkRevenue,
     welcomeDrinkProfit,
     additionalDessertRevenue,
     additionalDessertProfit,
     coffeeRevenue,
     coffeeProfit,
+    // Totals
     totalInterventionProfit,
     finalGrossProfit,
     gapRecoveryPercent,

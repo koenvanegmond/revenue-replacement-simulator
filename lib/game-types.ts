@@ -1,3 +1,5 @@
+import { NAStrategy } from './types';
+
 export type GameScreen = 'welcome' | 'restaurant-picker' | 'challenge' | 'result';
 
 export interface CardData {
@@ -11,17 +13,32 @@ export interface CardData {
 }
 
 export interface GameLevers {
-  naAttachRate: number;
-  naPairingPrice: number;
-  naPairingMargin: number;
+  // Lever 1 — NA strategy (make-or-buy + pricing elasticity)
+  restaurantId: string;          // looks up RESTAURANT_NA_PROFILES; set on restaurant pick
+  naStrategy: NAStrategy;        // 'bottled' | 'in_house'
+  naPlayerSetPrice: number;      // € per NA glass
+  naScheduledLaborHours: number; // hours/month allocated to NA production
+  // Lever 2 — menu engineering
   starPromotion: number;
   plowhorseEngineering: number;
   puzzleActivation: number;
+  dogReplacement: number;
+  // Lever 3 — spend per table
   welcomeConversion: number;
   welcomePrice: number;
   dessertAttachRate: number;
   coffeeAttachRate: number;
 }
+
+// Subset of GameLevers that maps 1:1 to a numeric slider in the UI.
+export type SliderKey =
+  | 'starPromotion'
+  | 'plowhorseEngineering'
+  | 'puzzleActivation'
+  | 'welcomeConversion'
+  | 'welcomePrice'
+  | 'dessertAttachRate'
+  | 'coffeeAttachRate';
 
 export interface LeaderboardEntry {
   name: string;
@@ -38,13 +55,17 @@ export const GAME_MARGINS = {
 } as const;
 
 // ─── Default lever values (matching simulator defaults) ────────────────────────
+// naPlayerSetPrice / restaurantId are overwritten on restaurant selection
+// (see app/game/page.tsx handleRestaurantSelect).
 export const DEFAULT_LEVERS: GameLevers = {
-  naAttachRate: 20,
-  naPairingPrice: 25,
-  naPairingMargin: 65,
+  restaurantId: 'le-bistro',
+  naStrategy: 'bottled',
+  naPlayerSetPrice: 15,          // le-bistro bottled defaultPrice
+  naScheduledLaborHours: 0,      // bottled = no in-house labor
   starPromotion: 25,
   plowhorseEngineering: 20,
   puzzleActivation: 25,
+  dogReplacement: 0,
   welcomeConversion: 25,
   welcomePrice: 8,
   dessertAttachRate: 2,
@@ -112,10 +133,8 @@ export const DEFAULT_CARD: CardData = {
 
 // ─── Aggressive zone boundaries ────────────────────────────────────────────────
 // Values above these thresholds are "aggressive" and incur a staff/training cost penalty
-export const AGGRESSIVE_THRESHOLD = {
-  naAttachRate: 30,
-  naPairingPrice: 35,
-  naPairingMargin: 70,
+// (NA pricing aggression is modelled inside the elasticity engine, so no entry here.)
+export const AGGRESSIVE_THRESHOLD: Record<SliderKey, number> = {
   starPromotion: 70,
   plowhorseEngineering: 70,
   puzzleActivation: 70,
@@ -123,7 +142,7 @@ export const AGGRESSIVE_THRESHOLD = {
   welcomePrice: 10,
   dessertAttachRate: 3,
   coffeeAttachRate: 85,
-} as const;
+};
 
 export const STAFF_PENALTY_PER_AGGRESSIVE = 400; // €/month per aggressive lever
 
@@ -136,19 +155,7 @@ export interface SliderConfig {
   benchmark: string;
 }
 
-export const SLIDER_CONFIGS: Record<keyof GameLevers, SliderConfig> = {
-  naAttachRate: {
-    min: 0, max: 80, realisticMax: 30, unit: '%', label: 'NA Pairing Attach Rate',
-    benchmark: '10–20% typical, 30%+ best in class (World of Nix, 2026)',
-  },
-  naPairingPrice: {
-    min: 15, max: 60, realisticMax: 35, unit: '€', label: 'Pairing price',
-    benchmark: '€20–30 typical for premium NA pairings (World of Nix, 2026)',
-  },
-  naPairingMargin: {
-    min: 50, max: 80, realisticMax: 70, unit: '%', label: 'NA pairing margin',
-    benchmark: '60–70% (Harpoon interview, 2026)',
-  },
+export const SLIDER_CONFIGS: Record<SliderKey, SliderConfig> = {
   starPromotion: {
     min: 0, max: 100, realisticMax: 60, unit: '%', label: 'Star promotion',
     benchmark: '20–40% typical push; >70% courts menu fatigue (Kasavana & Smith, 1982)',

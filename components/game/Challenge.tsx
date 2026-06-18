@@ -1,10 +1,14 @@
 'use client';
 
-import { CardData, GameLevers, SLIDER_CONFIGS, DEFAULT_LEVERS, RESTAURANTS } from '@/lib/game-types';
+import { CardData, GameLevers, SLIDER_CONFIGS, DEFAULT_LEVERS, RESTAURANTS, SliderKey } from '@/lib/game-types';
 import { calcGameScore, GameScore } from '@/lib/game-calculations';
+import { calcStep3 } from '@/lib/calculations';
+import { buildSimulatorState } from '@/lib/game-calculations';
+import { getRestaurantNAProfile } from '@/lib/restaurant-na-profiles';
 import { fmt, fmtPct } from '@/lib/calculations';
 import { RESTAURANT_DATA, MenuItem } from '@/lib/restaurant-data';
 import { GameSlider } from './GameSlider';
+import { NAStrategyPanel } from '@/components/NAStrategyPanel';
 
 interface Props {
   card: CardData;
@@ -112,15 +116,17 @@ function findNarrative(restaurantName: string) {
 
 export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: Props) {
   const score = calcGameScore(card, levers);
-  const upd = (key: keyof GameLevers) => (val: number) =>
+  // Re-derive full Step3Results to feed the NA panel — calcGameScore only
+  // exposes a subset on GameScore. Cheap; the inner pipeline is the same call.
+  const step3 = calcStep3(buildSimulatorState(card, levers));
+  const naProfile = getRestaurantNAProfile(levers.restaurantId);
+  const upd = (key: SliderKey) => (val: number) =>
     onChange({ ...levers, [key]: val });
 
   const verdictColor = score.recoveryPercent >= 90 ? '#2E7D5A' : score.recoveryPercent >= 50 ? '#D97706' : '#9E3A3A';
   const narrative = findNarrative(card.restaurantName);
 
   // Derived values for live calc strings
-  const shiftedCovers = Math.round(card.covers * (card.declineRate / 100));
-  const naGuestsPerMonth = Math.round(shiftedCovers * (levers.naAttachRate / 100));
   const welcomeDrinksPerMonth = Math.round(card.covers * (levers.welcomeConversion / 100));
   const dessertCoversPerMonth = Math.round(card.covers * (levers.dessertAttachRate / 100));
   const coffeeCoversPerMonth = Math.round(card.covers * (levers.coffeeAttachRate / 100));
@@ -279,24 +285,18 @@ export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: 
             The Levers
           </h3>
 
-          {/* Lever 1 */}
-          <LeverSection number="1" title="Premium NA Pairing" color="#1B3A2D">
-            <SliderWithCalc
-              tooltip="% of non-drinking guests who choose the NA pairing (standard 4-course experience, €25–35)"
-              calc={
-                <>
-                  = {naGuestsPerMonth} guests/mo × €{levers.naPairingPrice} × {levers.naPairingMargin}% margin ≈{' '}
-                  <span className="font-bold">{fmt(score.naPairingProfit)}</span>/mo
-                </>
-              }
-            >
-              <GameSlider field="naAttachRate" config={SLIDER_CONFIGS.naAttachRate} value={levers.naAttachRate} onChange={upd('naAttachRate')} />
-            </SliderWithCalc>
-            <GameSlider field="naPairingPrice" config={SLIDER_CONFIGS.naPairingPrice} value={levers.naPairingPrice} onChange={upd('naPairingPrice')} />
-            <GameSlider field="naPairingMargin" config={SLIDER_CONFIGS.naPairingMargin} value={levers.naPairingMargin} onChange={upd('naPairingMargin')} />
-            <div className="mt-1 rounded bg-[#F0F7F4] px-2 py-1.5 text-xs text-[#2E7D5A]">
-              Total Lever 1: <span className="stat-number font-bold">{fmt(score.naPairingProfit)}</span>/month
-            </div>
+          {/* Lever 1 — NA Beverage Strategy */}
+          <LeverSection number="1" title="NA Beverage Strategy" color="#1B3A2D">
+            <NAStrategyPanel
+              profile={naProfile}
+              covers={card.covers}
+              strategy={levers.naStrategy}
+              playerSetPrice={levers.naPlayerSetPrice}
+              scheduledLaborHours={levers.naScheduledLaborHours}
+              results={step3}
+              onChange={(patch) => onChange({ ...levers, ...patch })}
+              variant="game"
+            />
           </LeverSection>
 
           {/* Lever 2 — three sub-levers (Kasavana & Smith) */}
@@ -497,10 +497,10 @@ export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: 
             <p className="text-center text-xs text-[#9A9A9A]">Move at least one slider to unlock</p>
           )}
 
-          {/* Default comparison */}
+          {/* Default comparison — slider levers only (NA strategy is its own panel). */}
           <div className="rounded-xl border border-[#E8E3DC] bg-white p-3 text-xs text-[#7A7A7A]">
             <p className="font-semibold text-[#1A1A1A]">Default settings:</p>
-            {(Object.keys(DEFAULT_LEVERS) as (keyof GameLevers)[]).map((k) => {
+            {(Object.keys(SLIDER_CONFIGS) as SliderKey[]).map((k) => {
               const cfg = SLIDER_CONFIGS[k];
               const val = DEFAULT_LEVERS[k];
               const cur = levers[k];

@@ -5,6 +5,8 @@ import { fmt } from '@/lib/calculations';
 import { Slider } from './Slider';
 import { InfoBox } from './InfoBox';
 import { Results } from './Results';
+import { NAStrategyPanel } from './NAStrategyPanel';
+import { getRestaurantNAProfile } from '@/lib/restaurant-na-profiles';
 
 interface Props {
   state: SimulatorState;
@@ -66,48 +68,35 @@ export function Step3({ state, dispatch, results }: Props) {
             </p>
           </div>
 
-          {/* Lever 1: NA Pairing */}
+          {/* Lever 1: NA Beverage Strategy */}
           <LeverCard
             number="1"
-            title="Premium NA Pairing"
-            subtitle={`Based on ${Math.round(results.nonDrinkingCovers)} non-drinking covers/month`}
+            title="NA Beverage Strategy"
+            subtitle={`${state.naStrategy === 'in_house' ? 'In-house production' : 'Commercial bottled'} · €${state.naPlayerSetPrice.toFixed(2)}/glass`}
             profit={results.naPairingProfit}
           >
-            <Slider
-              label="Attach rate (of non-drinking guests)"
-              value={state.naAttachRate}
-              min={0}
-              max={80}
-              unit="%"
-              onChange={upd('naAttachRate')}
-              description="Share of guests not ordering alcohol who take a curated NA pairing"
+            <NAStrategyPanel
+              profile={getRestaurantNAProfile(state.restaurantId)}
+              covers={state.covers}
+              strategy={state.naStrategy}
+              playerSetPrice={state.naPlayerSetPrice}
+              scheduledLaborHours={state.naScheduledLaborHours}
+              results={results}
+              onChange={(patch) => {
+                // Reducer takes one field per action. Dispatching in sequence is
+                // fine — React batches the updates into a single re-render.
+                if (patch.naStrategy !== undefined) {
+                  dispatch({ type: 'UPDATE', field: 'naStrategy', value: patch.naStrategy });
+                }
+                if (patch.naPlayerSetPrice !== undefined) {
+                  dispatch({ type: 'UPDATE', field: 'naPlayerSetPrice', value: patch.naPlayerSetPrice });
+                }
+                if (patch.naScheduledLaborHours !== undefined) {
+                  dispatch({ type: 'UPDATE', field: 'naScheduledLaborHours', value: patch.naScheduledLaborHours });
+                }
+              }}
+              variant="simulator"
             />
-            <p className="mb-4 -mt-2 text-xs italic text-[#9A9A9A]">
-              Industry benchmark: 10–20% typical, 30%+ best in class (World of Nix, 2026)
-            </p>
-            <Slider
-              label="Pairing price"
-              value={state.naPairingPrice}
-              min={15}
-              max={60}
-              unit="€"
-              onChange={upd('naPairingPrice')}
-              description="Price of the full NA pairing (e.g. 3-course with premium juices, kombucha, shrubs)"
-            />
-            <p className="mb-4 -mt-2 text-xs italic text-[#9A9A9A]">
-              Benchmark: €20–30 typical for premium NA pairings (World of Nix, 2026)
-            </p>
-            <Slider
-              label="NA pairing gross margin"
-              value={state.naPairingMargin}
-              min={50}
-              max={80}
-              unit="%"
-              onChange={upd('naPairingMargin')}
-            />
-            <p className="mb-1 -mt-2 text-xs italic text-[#9A9A9A]">
-              Benchmark: 60–70% (Harpoon interview, 2026)
-            </p>
           </LeverCard>
 
           {/* Lever 2: Menu Engineering — three sub-levers */}

@@ -21,12 +21,17 @@ export function buildSimulatorState(card: CardData, levers: GameLevers): Simulat
     naMargin: GAME_MARGINS.naMargin,
     foodMargin: GAME_MARGINS.foodMargin,
     declineRate: card.declineRate,
-    naAttachRate: levers.naAttachRate,
-    naPairingPrice: levers.naPairingPrice,
-    naPairingMargin: levers.naPairingMargin,
+    // Lever 1 — NA strategy
+    restaurantId: levers.restaurantId,
+    naStrategy: levers.naStrategy,
+    naPlayerSetPrice: levers.naPlayerSetPrice,
+    naScheduledLaborHours: levers.naScheduledLaborHours,
+    // Lever 2 — menu engineering
     starPromotion: levers.starPromotion,
     plowhorseEngineering: levers.plowhorseEngineering,
     puzzleActivation: levers.puzzleActivation,
+    dogReplacement: levers.dogReplacement,
+    // Lever 3 — spend per table
     welcomeConversion: levers.welcomeConversion,
     welcomePrice: levers.welcomePrice,
     dessertAttachRate: levers.dessertAttachRate,
@@ -41,9 +46,13 @@ export interface GameScore {
   totalPenalty: number;
   netRecovery: number;
   recoveryPercent: number;
-  aggressiveLevers: (keyof GameLevers)[];
+  aggressiveLevers: (keyof typeof AGGRESSIVE_THRESHOLD)[];
   // Per-lever breakdown
   naPairingProfit: number;
+  naWarningLevel: 'ok' | 'stress' | 'critical';
+  naEffectiveAttachRate: number;
+  naEffectiveChurnRate: number;
+  naReviewScoreDelta: number;
   starProfit: number;
   plowhorseProfit: number;
   puzzleProfit: number;
@@ -58,12 +67,17 @@ export function calcGameScore(card: CardData, levers: GameLevers): GameScore {
   const state = buildSimulatorState(card, levers);
   const results = calcStep3(state);
 
-  const aggressiveLevers: (keyof GameLevers)[] = [];
-  (Object.keys(AGGRESSIVE_THRESHOLD) as (keyof GameLevers)[]).forEach((key) => {
+  const aggressiveLevers: (keyof typeof AGGRESSIVE_THRESHOLD)[] = [];
+  (Object.keys(AGGRESSIVE_THRESHOLD) as (keyof typeof AGGRESSIVE_THRESHOLD)[]).forEach((key) => {
     if (levers[key] > AGGRESSIVE_THRESHOLD[key]) aggressiveLevers.push(key);
   });
 
-  const penaltyCount = aggressiveLevers.length;
+  // Critical understaffing on in-house NA counts as an aggressive penalty —
+  // it represents the operational risk of running a programme you can't sustain.
+  let extraPenalties = 0;
+  if (results.naWarningLevel === 'critical') extraPenalties += 1;
+
+  const penaltyCount = aggressiveLevers.length + extraPenalties;
   const totalPenalty = penaltyCount * STAFF_PENALTY_PER_AGGRESSIVE;
   const netRecovery = Math.max(0, results.totalInterventionProfit - totalPenalty);
   const recoveryPercent = results.gap > 0 ? (netRecovery / results.gap) * 100 : 0;
@@ -77,6 +91,10 @@ export function calcGameScore(card: CardData, levers: GameLevers): GameScore {
     recoveryPercent,
     aggressiveLevers,
     naPairingProfit: results.naPairingProfit,
+    naWarningLevel: results.naWarningLevel,
+    naEffectiveAttachRate: results.naEffectiveAttachRate,
+    naEffectiveChurnRate: results.naEffectiveChurnRate,
+    naReviewScoreDelta: results.naReviewScoreDelta,
     starProfit: results.starProfit,
     plowhorseProfit: results.plowhorseProfit,
     puzzleProfit: results.puzzleProfit,
@@ -90,8 +108,11 @@ export function calcGameScore(card: CardData, levers: GameLevers): GameScore {
 
 // ─── Per-lever feedback ────────────────────────────────────────────────────────
 
-function isUnused(key: keyof GameLevers, levers: GameLevers): boolean {
-  return Math.abs(levers[key] - DEFAULT_LEVERS[key]) < 1;
+function isUnused(key: keyof typeof DEFAULT_LEVERS, levers: GameLevers): boolean {
+  const def = DEFAULT_LEVERS[key];
+  const cur = levers[key];
+  if (typeof def !== 'number' || typeof cur !== 'number') return false;
+  return Math.abs(cur - def) < 1;
 }
 
 export function getLeverFeedback(
@@ -124,15 +145,15 @@ export function getCoachingSummary(score: GameScore, levers: GameLevers): string
   const menuPct = (additionalFoodProfit / total) * 100;
   const upsellPct = (welcomePlusDesertProfit / total) * 100;
 
-  const na_unused = isUnused('naAttachRate', levers) && isUnused('naPairingPrice', levers);
   const menu_unused =
     isUnused('starPromotion', levers) &&
     isUnused('plowhorseEngineering', levers) &&
     isUnused('puzzleActivation', levers);
   const upsell_unused = isUnused('welcomeConversion', levers) && isUnused('dessertAttachRate', levers);
+  const na_weak = naPairingProfit < 500;
 
-  if (na_unused && menu_unused) return 'You relied almost entirely on upselling. A strong NA pairing programme and menu engineering would have added more.';
-  if (na_unused && upsell_unused) return 'Menu engineering alone is not enough. A premium NA pairing offering could close most of the remaining gap.';
+  if (na_weak && menu_unused) return 'You relied almost entirely on upselling. A stronger NA programme and menu engineering would have added more.';
+  if (na_weak && upsell_unused) return 'Menu engineering alone is not enough. A premium NA programme could close most of the remaining gap.';
   if (menu_unused && upsell_unused) return 'NA pairing was your only lever. Menu engineering and dessert upsell are both quick wins worth activating.';
 
   if (naPct > 50) return 'You leaned heavily on NA pairing. In practice, combining all three levers creates more resilience.';

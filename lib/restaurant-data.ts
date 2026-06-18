@@ -3,7 +3,7 @@ export type MenuItem = {
   price: number;
   marginPercent: number;
   ordersPerMonth: number;
-  category: 'Star' | 'Plowhorse' | 'Puzzle';
+  category: 'Star' | 'Plowhorse' | 'Puzzle' | 'Dog';
 };
 
 export type RestaurantNarrative = {
@@ -28,6 +28,8 @@ export const RESTAURANT_DATA: Record<string, RestaurantNarrative> = {
       { name: 'House Burger', price: 22, marginPercent: 48, ordersPerMonth: 130, category: 'Plowhorse' },
       { name: 'Sea Bass Carpaccio', price: 26, marginPercent: 75, ordersPerMonth: 35, category: 'Puzzle' },
       { name: 'Duck Confit', price: 34, marginPercent: 70, ordersPerMonth: 40, category: 'Puzzle' },
+      { name: 'Salmon Tartare', price: 14, marginPercent: 35, ordersPerMonth: 12, category: 'Dog' },
+      { name: 'Vegetarian Lasagna', price: 16, marginPercent: 30, ordersPerMonth: 15, category: 'Dog' },
     ],
   },
   'maison-elegante': {
@@ -43,6 +45,8 @@ export const RESTAURANT_DATA: Record<string, RestaurantNarrative> = {
       { name: 'Truffle Tagliatelle', price: 38, marginPercent: 48, ordersPerMonth: 85, category: 'Plowhorse' },
       { name: 'Caviar Service', price: 95, marginPercent: 78, ordersPerMonth: 20, category: 'Puzzle' },
       { name: 'Aged Beef Côte', price: 85, marginPercent: 72, ordersPerMonth: 28, category: 'Puzzle' },
+      { name: 'Garden Salad', price: 22, marginPercent: 32, ordersPerMonth: 14, category: 'Dog' },
+      { name: 'Vegan Risotto', price: 28, marginPercent: 36, ordersPerMonth: 16, category: 'Dog' },
     ],
   },
   'harbour-co': {
@@ -58,6 +62,8 @@ export const RESTAURANT_DATA: Record<string, RestaurantNarrative> = {
       { name: 'Salmon Risotto', price: 28, marginPercent: 50, ordersPerMonth: 170, category: 'Plowhorse' },
       { name: 'Oyster Platter', price: 38, marginPercent: 72, ordersPerMonth: 45, category: 'Puzzle' },
       { name: 'Seafood Boil', price: 48, marginPercent: 68, ordersPerMonth: 38, category: 'Puzzle' },
+      { name: 'Fish & Chips', price: 16, marginPercent: 38, ordersPerMonth: 18, category: 'Dog' },
+      { name: 'Caesar Salad', price: 14, marginPercent: 33, ordersPerMonth: 20, category: 'Dog' },
     ],
   },
   stadshotel: {
@@ -73,6 +79,8 @@ export const RESTAURANT_DATA: Record<string, RestaurantNarrative> = {
       { name: 'Chicken Curry', price: 26, marginPercent: 48, ordersPerMonth: 240, category: 'Plowhorse' },
       { name: 'Lamb Rack', price: 48, marginPercent: 72, ordersPerMonth: 55, category: 'Puzzle' },
       { name: 'Truffle Pasta', price: 42, marginPercent: 70, ordersPerMonth: 60, category: 'Puzzle' },
+      { name: 'Tomato Soup', price: 12, marginPercent: 35, ordersPerMonth: 22, category: 'Dog' },
+      { name: 'Hotel Club Salad', price: 17, marginPercent: 30, ordersPerMonth: 26, category: 'Dog' },
     ],
   },
   'atelier-noord': {
@@ -88,6 +96,8 @@ export const RESTAURANT_DATA: Record<string, RestaurantNarrative> = {
       { name: 'Pizza Tartufo', price: 28, marginPercent: 50, ordersPerMonth: 115, category: 'Plowhorse' },
       { name: 'Octopus Tataki', price: 36, marginPercent: 72, ordersPerMonth: 30, category: 'Puzzle' },
       { name: 'Foie Gras Terrine', price: 44, marginPercent: 75, ordersPerMonth: 25, category: 'Puzzle' },
+      { name: 'Beetroot Carpaccio', price: 16, marginPercent: 36, ordersPerMonth: 14, category: 'Dog' },
+      { name: 'Cauliflower Steak', price: 19, marginPercent: 32, ordersPerMonth: 17, category: 'Dog' },
     ],
   },
 };

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GameScreen, CardData, GameLevers, DEFAULT_LEVERS, DEFAULT_CARD } from '@/lib/game-types';
+import { GameScreen, CardData, GameLevers, DEFAULT_LEVERS, DEFAULT_CARD, RestaurantCard } from '@/lib/game-types';
+import { getRestaurantNAProfile } from '@/lib/restaurant-na-profiles';
 import { GameScore } from '@/lib/game-calculations';
 import { ShonenWelcome } from '@/components/game/ShonenWelcome';
 import { RestaurantPicker } from '@/components/game/RestaurantPicker';
@@ -51,8 +52,28 @@ export default function GamePage() {
 
   const go = (screen: GameScreen) => setState((s) => ({ ...s, screen }));
 
-  function handleRestaurantSelect(card: CardData) {
-    setState((s) => ({ ...s, card, levers: DEFAULT_LEVERS, hasMovedSlider: false, screen: 'challenge' }));
+  function handleRestaurantSelect(card: RestaurantCard) {
+    // Reset NA lever to this restaurant's bottled defaults — prevents carrying
+    // over nonsensical price/labor values from a previously-selected restaurant.
+    const profile = getRestaurantNAProfile(card.id);
+    const levers: GameLevers = {
+      ...DEFAULT_LEVERS,
+      restaurantId: card.id,
+      naStrategy: 'bottled',
+      naPlayerSetPrice: profile.bottled.defaultPrice,
+      naScheduledLaborHours: 0,
+    };
+    // Strip the picker-only fields (id, themeColor, accentColor) before storing as CardData.
+    const cardData: CardData = {
+      restaurantName: card.restaurantName,
+      restaurantType: card.restaurantType,
+      covers: card.covers,
+      avgSpend: card.avgSpend,
+      beverageShare: card.beverageShare,
+      alcoholShare: card.alcoholShare,
+      declineRate: card.declineRate,
+    };
+    setState((s) => ({ ...s, card: cardData, levers, hasMovedSlider: false, screen: 'challenge' }));
   }
 
   function handleLeversChange(levers: GameLevers) {

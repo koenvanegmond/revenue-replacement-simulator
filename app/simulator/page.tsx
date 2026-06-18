@@ -19,12 +19,17 @@ const initialState: SimulatorState = {
   naMargin: 70,
   foodMargin: 65,
   declineRate: 25,
-  naAttachRate: 20,
-  naPairingPrice: 25,
-  naPairingMargin: 65,
+  // Lever 1 — NA strategy (defaults match Le Bistro bottled profile)
+  restaurantId: 'le-bistro',
+  naStrategy: 'bottled',
+  naPlayerSetPrice: 15,
+  naScheduledLaborHours: 0,
+  // Lever 2 — menu engineering
   starPromotion: 25,
   plowhorseEngineering: 20,
   puzzleActivation: 25,
+  dogReplacement: 0,
+  // Lever 3 — spend per table
   welcomeConversion: 25,
   welcomePrice: 8,
   dessertAttachRate: 2,

@@ -1,10 +1,10 @@
 'use client';
 
-import { CardData, RESTAURANTS, RestaurantCard } from '@/lib/game-types';
+import { RESTAURANTS, RestaurantCard } from '@/lib/game-types';
 import { fmt, fmtPct } from '@/lib/calculations';
 
 interface Props {
-  onSelect: (card: CardData) => void;
+  onSelect: (card: RestaurantCard) => void;
   onBack: () => void;
 }
 
