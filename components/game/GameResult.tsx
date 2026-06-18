@@ -35,21 +35,51 @@ export function GameResult({ card, levers, score, onPlayAgain }: Props) {
 
   // Per-lever feedback
   const naProfit = score.naPairingProfit;
-  const menuProfit = score.additionalFoodProfit;
   const upsellProfit = score.welcomePlusDesertProfit;
-  const totalProfit = naProfit + menuProfit + upsellProfit;
+  const totalProfit =
+    naProfit + score.starProfit + score.plowhorseProfit + score.puzzleProfit + upsellProfit;
 
   const naAggressive = levers.naAttachRate > AGGRESSIVE_THRESHOLD.naAttachRate || levers.naPairingPrice > AGGRESSIVE_THRESHOLD.naPairingPrice;
-  const menuAggressive = levers.foodMarginUplift > AGGRESSIVE_THRESHOLD.foodMarginUplift;
   const upsellAggressive = levers.welcomeConversion > AGGRESSIVE_THRESHOLD.welcomeConversion || levers.dessertAttachRate > AGGRESSIVE_THRESHOLD.dessertAttachRate;
 
   const naUnused = Math.abs(levers.naAttachRate - DEFAULT_LEVERS.naAttachRate) < 2 && Math.abs(levers.naPairingPrice - DEFAULT_LEVERS.naPairingPrice) < 2;
-  const menuUnused = Math.abs(levers.foodMarginUplift - DEFAULT_LEVERS.foodMarginUplift) < 1;
   const upsellUnused = Math.abs(levers.welcomeConversion - DEFAULT_LEVERS.welcomeConversion) < 2 && Math.abs(levers.dessertAttachRate - DEFAULT_LEVERS.dessertAttachRate) < 1;
 
-  const feedbacks = [
+  // Sub-lever (Lever 2) feedback by aggressiveness band — operator language, no jargon.
+  function subLeverFeedback(label: string, value: number, highMsg: string, midMsg: string, lowMsg: string) {
+    const aggressive = value > 70;
+    const unused = value < 30;
+    const text = aggressive ? highMsg : unused ? lowMsg : midMsg;
+    return { label, aggressive, unused, text };
+  }
+
+  const star = subLeverFeedback(
+    'Star Promotion',
+    levers.starPromotion,
+    'You pushed Stars hard — menu fatigue is starting to bite into the gain.',
+    'Balanced push on your Stars — solid contribution without burning out the menu.',
+    'You left profit on the table — your bestsellers were under-promoted.',
+  );
+  const plow = subLeverFeedback(
+    'Plowhorse Re-engineering',
+    levers.plowhorseEngineering,
+    'Aggressive Plowhorse cuts — guests will notice the quality drop.',
+    'Sensible recipe redesign on your Plowhorses — the biggest realistic lift.',
+    'Plowhorses are your volume engine — you barely touched them.',
+  );
+  const puzzle = subLeverFeedback(
+    'Puzzle Activation',
+    levers.puzzleActivation,
+    'You over-pushed Puzzles — kitchen complexity is eating the margin gain.',
+    'Good storytelling on your Puzzles — high-margin items are moving.',
+    'Your Puzzles stayed hidden on the menu — easy points missed.',
+  );
+
+  const feedbacks: { label: string; profit: number; aggressive: boolean; unused: boolean; text?: string }[] = [
     { label: 'Premium NA Pairing', profit: naProfit, aggressive: naAggressive, unused: naUnused },
-    { label: 'Menu Engineering', profit: menuProfit, aggressive: menuAggressive, unused: menuUnused },
+    { label: star.label, profit: score.starProfit, aggressive: star.aggressive, unused: star.unused, text: star.text },
+    { label: plow.label, profit: score.plowhorseProfit, aggressive: plow.aggressive, unused: plow.unused, text: plow.text },
+    { label: puzzle.label, profit: score.puzzleProfit, aggressive: puzzle.aggressive, unused: puzzle.unused, text: puzzle.text },
     { label: 'Welcome + Dessert', profit: upsellProfit, aggressive: upsellAggressive, unused: upsellUnused },
   ];
 
@@ -101,8 +131,8 @@ export function GameResult({ card, levers, score, onPlayAgain }: Props) {
           Lever Analysis
         </h3>
         <div className="space-y-3">
-          {feedbacks.map(({ label, profit, aggressive, unused }) => {
-            const text = getLeverFeedback(label, profit, totalProfit, aggressive, unused);
+          {feedbacks.map(({ label, profit, aggressive, unused, text: subText }) => {
+            const text = subText ?? getLeverFeedback(label, profit, totalProfit, aggressive, unused);
             const icon = unused ? '◯' : aggressive ? '⚠' : '✓';
             const color = unused ? '#9A9A9A' : aggressive ? '#D97706' : '#2E7D5A';
             return (

@@ -11,13 +11,16 @@ export interface SimulatorState {
   // Step 2 — decline scenario
   declineRate: number;      // % drop in alcohol revenue by 2030
   // Step 3 — intervention levers
-  naAttachRate: number;     // % of non-drinking guests who order NA pairing
-  naPairingPrice: number;   // € price per pairing
-  naPairingMargin: number;  // gross margin %
-  foodMarginUplift: number; // percentage-point improvement from menu engineering
-  welcomeConversion: number; // % of guests ordering NA welcome drink
-  welcomePrice: number;     // € price of welcome drink
-  dessertAttachRate: number; // pp increase in dessert attach due to moral licensing
+  naAttachRate: number;       // % of non-drinking guests who order NA pairing
+  naPairingPrice: number;     // € price per pairing
+  naPairingMargin: number;    // gross margin %
+  starPromotion: number;      // 0-100, aggressiveness of Star Promotion lever
+  plowhorseEngineering: number; // 0-100, aggressiveness of Plowhorse Re-engineering lever
+  puzzleActivation: number;   // 0-100, aggressiveness of Puzzle Activation lever
+  welcomeConversion: number;  // % of guests ordering NA welcome drink
+  welcomePrice: number;       // € price of welcome drink
+  dessertAttachRate: number;  // pp increase in dessert attach due to moral licensing
+  coffeeAttachRate: number;   // % of covers ordering coffee/tea post-meal
 }
 
 export type SimulatorAction =
@@ -47,11 +50,17 @@ export interface Step3Results extends Step2Results {
   nonDrinkingCovers: number;
   naPairingRevenue: number;
   naPairingProfit: number;
+  starProfit: number;
+  plowhorseProfit: number;
+  puzzleProfit: number;
+  totalMarginUpliftPP: number;
   additionalFoodProfit: number;
   welcomeDrinkRevenue: number;
   welcomeDrinkProfit: number;
   additionalDessertRevenue: number;
   additionalDessertProfit: number;
+  coffeeRevenue: number;
+  coffeeProfit: number;
   totalInterventionProfit: number;
   finalGrossProfit: number;
   gapRecoveryPercent: number;

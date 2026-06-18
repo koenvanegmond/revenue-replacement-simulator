@@ -14,10 +14,13 @@ export interface GameLevers {
   naAttachRate: number;
   naPairingPrice: number;
   naPairingMargin: number;
-  foodMarginUplift: number;
+  starPromotion: number;
+  plowhorseEngineering: number;
+  puzzleActivation: number;
   welcomeConversion: number;
   welcomePrice: number;
   dessertAttachRate: number;
+  coffeeAttachRate: number;
 }
 
 export interface LeaderboardEntry {
@@ -39,10 +42,13 @@ export const DEFAULT_LEVERS: GameLevers = {
   naAttachRate: 20,
   naPairingPrice: 25,
   naPairingMargin: 65,
-  foodMarginUplift: 2,
+  starPromotion: 25,
+  plowhorseEngineering: 20,
+  puzzleActivation: 25,
   welcomeConversion: 25,
   welcomePrice: 8,
   dessertAttachRate: 2,
+  coffeeAttachRate: 60,
 };
 
 export interface RestaurantCard extends CardData {
@@ -110,10 +116,13 @@ export const AGGRESSIVE_THRESHOLD = {
   naAttachRate: 30,
   naPairingPrice: 35,
   naPairingMargin: 70,
-  foodMarginUplift: 3,
+  starPromotion: 70,
+  plowhorseEngineering: 70,
+  puzzleActivation: 70,
   welcomeConversion: 30,
   welcomePrice: 10,
   dessertAttachRate: 3,
+  coffeeAttachRate: 85,
 } as const;
 
 export const STAFF_PENALTY_PER_AGGRESSIVE = 400; // €/month per aggressive lever
@@ -129,7 +138,7 @@ export interface SliderConfig {
 
 export const SLIDER_CONFIGS: Record<keyof GameLevers, SliderConfig> = {
   naAttachRate: {
-    min: 0, max: 80, realisticMax: 30, unit: '%', label: 'Attach rate',
+    min: 0, max: 80, realisticMax: 30, unit: '%', label: 'NA Pairing Attach Rate',
     benchmark: '10–20% typical, 30%+ best in class (World of Nix, 2026)',
   },
   naPairingPrice: {
@@ -140,9 +149,17 @@ export const SLIDER_CONFIGS: Record<keyof GameLevers, SliderConfig> = {
     min: 50, max: 80, realisticMax: 70, unit: '%', label: 'NA pairing margin',
     benchmark: '60–70% (Harpoon interview, 2026)',
   },
-  foodMarginUplift: {
-    min: 0, max: 10, realisticMax: 3, unit: ' pp', label: 'Food margin uplift',
-    benchmark: '1–3pp realistic, 5pp+ aggressive (Morrison, 1996)',
+  starPromotion: {
+    min: 0, max: 100, realisticMax: 60, unit: '%', label: 'Star promotion',
+    benchmark: '20–40% typical push; >70% courts menu fatigue (Kasavana & Smith, 1982)',
+  },
+  plowhorseEngineering: {
+    min: 0, max: 100, realisticMax: 60, unit: '%', label: 'Plowhorse re-engineering',
+    benchmark: '15–35% realistic redesign effort (Morrison, 1996)',
+  },
+  puzzleActivation: {
+    min: 0, max: 100, realisticMax: 60, unit: '%', label: 'Puzzle activation',
+    benchmark: '20–40% storytelling intensity; >70% strains kitchen complexity',
   },
   welcomeConversion: {
     min: 0, max: 100, realisticMax: 30, unit: '%', label: 'Welcome drink conversion',
@@ -153,7 +170,11 @@ export const SLIDER_CONFIGS: Record<keyof GameLevers, SliderConfig> = {
     benchmark: '€6–10 typical',
   },
   dessertAttachRate: {
-    min: 0, max: 15, realisticMax: 3, unit: ' pp', label: 'Dessert attach uplift',
+    min: 0, max: 15, realisticMax: 3, unit: ' pp', label: 'Dessert Attach Rate',
     benchmark: '1–3pp realistic (Prinsen et al., 2018)',
+  },
+  coffeeAttachRate: {
+    min: 0, max: 100, realisticMax: 80, unit: '%', label: 'Coffee / tea attach',
+    benchmark: '50–75% typical; >70% adds seat-time friction',
   },
 };

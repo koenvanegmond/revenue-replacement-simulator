@@ -110,28 +110,83 @@ export function Step3({ state, dispatch, results }: Props) {
             </p>
           </LeverCard>
 
-          {/* Lever 2: Menu Engineering */}
+          {/* Lever 2: Menu Engineering — three sub-levers */}
           <LeverCard
             number="2"
-            title="Menu Engineering Uplift"
-            subtitle="Kasavana & Smith (1982) + Morrison (1996) framework"
+            title="Menu Engineering (Kasavana & Smith)"
+            subtitle="Three sub-levers — Stars, Plowhorses, Puzzles. Each carries its own cost curve."
             profit={results.additionalFoodProfit}
           >
-            <Slider
-              label="Food margin improvement"
-              value={state.foodMarginUplift}
-              min={0}
-              max={10}
-              unit=" pp"
-              onChange={upd('foodMarginUplift')}
-              description="Percentage-point gain in average food gross margin from repositioning Stars and Plowhorses, reducing comping, and renegotiating supplier costs"
-            />
-            <p className="mb-3 -mt-2 text-xs italic text-[#9A9A9A]">
-              Benchmark: 1–3pp realistic, 5pp+ aggressive (Morrison, 1996)
-            </p>
+            {/* 2a. Star Promotion */}
+            <div className="mb-4 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h5 className="text-sm font-semibold text-[#1B3A2D]">2a. Star Promotion</h5>
+                <span className="stat-number text-xs font-semibold text-[#2E7D5A]">
+                  +{fmt(results.starProfit)}
+                </span>
+              </div>
+              <Slider
+                label="Aggressiveness"
+                value={state.starPromotion}
+                min={0}
+                max={100}
+                unit="%"
+                onChange={upd('starPromotion')}
+                description="Visual hierarchy + suggestive selling on bestsellers (high-margin, high-volume items). Over-pushing creates menu fatigue."
+              />
+              <p className="mb-1 -mt-2 text-xs italic text-[#9A9A9A]">
+                20–40% typical push; &gt;70% courts menu fatigue (Kasavana & Smith, 1982)
+              </p>
+            </div>
+
+            {/* 2b. Plowhorse Re-engineering */}
+            <div className="mb-4 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h5 className="text-sm font-semibold text-[#1B3A2D]">2b. Plowhorse Re-engineering</h5>
+                <span className="stat-number text-xs font-semibold text-[#2E7D5A]">
+                  +{fmt(results.plowhorseProfit)}
+                </span>
+              </div>
+              <Slider
+                label="Aggressiveness"
+                value={state.plowhorseEngineering}
+                min={0}
+                max={100}
+                unit="%"
+                onChange={upd('plowhorseEngineering')}
+                description="Recipe redesign and sourcing optimisation on high-volume / low-margin items. Highest upside, but aggressive cuts risk perceived quality."
+              />
+              <p className="mb-1 -mt-2 text-xs italic text-[#9A9A9A]">
+                15–35% realistic redesign effort (Morrison, 1996)
+              </p>
+            </div>
+
+            {/* 2c. Puzzle Activation */}
+            <div className="mb-3 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h5 className="text-sm font-semibold text-[#1B3A2D]">2c. Puzzle Activation</h5>
+                <span className="stat-number text-xs font-semibold text-[#2E7D5A]">
+                  +{fmt(results.puzzleProfit)}
+                </span>
+              </div>
+              <Slider
+                label="Aggressiveness"
+                value={state.puzzleActivation}
+                min={0}
+                max={100}
+                unit="%"
+                onChange={upd('puzzleActivation')}
+                description="Storytelling and FOH coaching to sell high-margin / low-volume items. Adds kitchen and service complexity."
+              />
+              <p className="mb-1 -mt-2 text-xs italic text-[#9A9A9A]">
+                20–40% storytelling intensity; &gt;70% strains kitchen complexity
+              </p>
+            </div>
+
             <div className="rounded bg-[#F5F0E8] px-3 py-2 text-xs text-[#6A5A40]">
-              Current food margin: <strong>{state.foodMargin}%</strong> → New margin:{' '}
-              <strong>{state.foodMargin + state.foodMarginUplift}%</strong>
+              Net effective margin uplift:{' '}
+              <strong>{results.totalMarginUpliftPP.toFixed(2)}pp</strong> on food revenue
+              (after training, fatigue & complexity costs)
             </div>
           </LeverCard>
 

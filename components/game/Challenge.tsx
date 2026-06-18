@@ -1,8 +1,9 @@
 'use client';
 
-import { CardData, GameLevers, SLIDER_CONFIGS, DEFAULT_LEVERS } from '@/lib/game-types';
+import { CardData, GameLevers, SLIDER_CONFIGS, DEFAULT_LEVERS, RESTAURANTS } from '@/lib/game-types';
 import { calcGameScore, GameScore } from '@/lib/game-calculations';
 import { fmt, fmtPct } from '@/lib/calculations';
+import { RESTAURANT_DATA, MenuItem } from '@/lib/restaurant-data';
 import { GameSlider } from './GameSlider';
 
 interface Props {
@@ -53,12 +54,95 @@ function LeverSection({
   );
 }
 
+// Wraps a GameSlider with optional tooltip and live calc text.
+function SliderWithCalc({
+  tooltip, calc, children,
+}: { tooltip?: string; calc?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div>
+      {children}
+      {tooltip && (
+        <p className="-mt-2 mb-1 text-[10px] italic text-[#7A7A7A]">{tooltip}</p>
+      )}
+      {calc && (
+        <div className="mb-3 rounded bg-[#F0F7F4] px-2 py-1.5 text-[10px] text-[#2E7D5A]">
+          {calc}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuCategoryBlock({
+  icon, title, hint, items, highlighted, borderColor,
+}: {
+  icon: string; title: string; hint: string; items: MenuItem[]; highlighted: boolean; borderColor: string;
+}) {
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#1B3A2D]">
+        {icon} {title} <span className="font-normal text-[#7A7A7A] normal-case">— {hint}</span>
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {items.map((it) => (
+          <div
+            key={it.name}
+            className="rounded border-l-4 bg-white px-2.5 py-1.5 text-xs shadow-sm transition-all"
+            style={{
+              borderLeftColor: borderColor,
+              transform: highlighted ? 'scale(1.02)' : 'scale(1)',
+              boxShadow: highlighted ? `0 0 0 2px ${borderColor}33` : undefined,
+            }}
+          >
+            <p className="font-semibold text-[#1A1A1A]">{it.name}</p>
+            <p className="text-[10px] text-[#7A7A7A]">
+              €{it.price} · {it.marginPercent}% margin · {it.ordersPerMonth}/mo
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function findNarrative(restaurantName: string) {
+  const match = RESTAURANTS.find((r) => r.restaurantName === restaurantName);
+  return match ? RESTAURANT_DATA[match.id] : undefined;
+}
+
 export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: Props) {
   const score = calcGameScore(card, levers);
   const upd = (key: keyof GameLevers) => (val: number) =>
     onChange({ ...levers, [key]: val });
 
   const verdictColor = score.recoveryPercent >= 90 ? '#2E7D5A' : score.recoveryPercent >= 50 ? '#D97706' : '#9E3A3A';
+  const narrative = findNarrative(card.restaurantName);
+
+  // Derived values for live calc strings
+  const shiftedCovers = Math.round(card.covers * (card.declineRate / 100));
+  const naGuestsPerMonth = Math.round(shiftedCovers * (levers.naAttachRate / 100));
+  const welcomeDrinksPerMonth = Math.round(card.covers * (levers.welcomeConversion / 100));
+  const dessertCoversPerMonth = Math.round(card.covers * (levers.dessertAttachRate / 100));
+  const coffeeCoversPerMonth = Math.round(card.covers * (levers.coffeeAttachRate / 100));
+
+  // Live gap tracker (uses gross intervention profit, not penalised net)
+  const gross = score.totalInterventionProfit;
+  const grossRecoveryPct = score.gap > 0 ? (gross / score.gap) * 100 : 0;
+  const stillMissing = Math.max(0, score.gap - gross);
+  const overRecovered = grossRecoveryPct > 100;
+  const trackerColor =
+    grossRecoveryPct >= 90 ? '#2E7D5A'
+    : grossRecoveryPct >= 50 ? '#D9A206'
+    : '#9E3A3A';
+
+  // Menu highlight flags — bonus visual cue when a sub-lever is pushed >50%
+  const highlightStars = levers.starPromotion > 50;
+  const highlightPlowhorses = levers.plowhorseEngineering > 50;
+  const highlightPuzzles = levers.puzzleActivation > 50;
+
+  const stars = narrative?.menu.filter((m) => m.category === 'Star') ?? [];
+  const plowhorses = narrative?.menu.filter((m) => m.category === 'Plowhorse') ?? [];
+  const puzzles = narrative?.menu.filter((m) => m.category === 'Puzzle') ?? [];
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]">
@@ -77,6 +161,35 @@ export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: 
           </div>
         </div>
       </div>
+
+      {/* ── H1: Narrative panel ── */}
+      {narrative && (
+        <div className="border-b border-[#E8E3DC] bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-5">
+            <h3 className="font-[family-name:var(--font-playfair)] text-xl font-bold text-[#1B3A2D]">
+              {card.restaurantName}
+            </h3>
+            <div className="my-2 h-px bg-[#E8E3DC]" />
+            <p className="text-sm leading-relaxed text-[#3A3A3A]">{narrative.story}</p>
+            <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-[#B45309]">
+              ⚠ The 2030 Challenge
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[#3A3A3A]">{narrative.challenge}</p>
+            <div className="mt-3 space-y-0.5 rounded bg-[#FAF7F2] px-3 py-2 text-xs text-[#4A4A4A]">
+              <p>
+                By 2030: <strong>{card.declineRate}%</strong> of guests drink less alcohol
+              </p>
+              <p>
+                Projected monthly profit gap: <strong className="stat-number text-[#9E3A3A]">{fmt(score.gap)}</strong>
+              </p>
+              <p className="font-semibold text-[#1B3A2D]">→ How will you close it?</p>
+            </div>
+            <p className="mt-2 text-[10px] italic text-[#9A9A9A]">
+              This tool assumes structural alcohol decline. The question is not whether to fight it — the question is how to replace the lost margin.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Three-column layout ── */}
       <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[260px_1fr_260px]">
@@ -110,7 +223,7 @@ export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: 
             <p className="stat-number text-2xl font-black">{fmt(score.gap)}</p>
             <p className="mt-1 text-xs text-[#F0A0A8]">/ month by 2030</p>
             <p className="mt-3 text-xs font-medium text-white">
-              Your mission: close this gap using the three levers.
+              Your mission: close this gap using the levers.
             </p>
           </div>
 
@@ -125,35 +238,206 @@ export function Challenge({ card, levers, onChange, onSubmit, hasMovedSlider }: 
 
         {/* ── MIDDLE: Levers ── */}
         <div>
+          {/* H4: Live gap tracker */}
+          <div className="mb-4 rounded-xl border-2 border-[#E8E3DC] bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-baseline justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#8A8A8A]">Live Gap Tracker</p>
+              {overRecovered && (
+                <span className="rounded bg-[#1B3A2D] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  over-recovered
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center text-xs">
+              <div>
+                <p className="text-[10px] text-[#7A7A7A]">Gap to close</p>
+                <p className="stat-number text-base font-bold text-[#9E3A3A]">{fmt(score.gap)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#7A7A7A]">Currently recovered</p>
+                <p className="stat-number text-base font-bold" style={{ color: trackerColor }}>
+                  {fmt(gross)} <span className="text-[10px] font-medium">({grossRecoveryPct.toFixed(0)}%)</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#7A7A7A]">Still missing</p>
+                <p className="stat-number text-base font-bold text-[#3A3A3A]">{fmt(stillMissing)}</p>
+              </div>
+            </div>
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[#E8E3DC]">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(grossRecoveryPct, 100)}%`,
+                  background: trackerColor,
+                }}
+              />
+            </div>
+          </div>
+
           <h3 className="mb-3 font-[family-name:var(--font-playfair)] text-lg font-bold text-[#1B3A2D]">
-            The Three Levers
+            The Levers
           </h3>
 
           {/* Lever 1 */}
           <LeverSection number="1" title="Premium NA Pairing" color="#1B3A2D">
-            <GameSlider field="naAttachRate" config={SLIDER_CONFIGS.naAttachRate} value={levers.naAttachRate} onChange={upd('naAttachRate')} />
+            <SliderWithCalc
+              tooltip="% of non-drinking guests who choose the NA pairing (standard 4-course experience, €25–35)"
+              calc={
+                <>
+                  = {naGuestsPerMonth} guests/mo × €{levers.naPairingPrice} × {levers.naPairingMargin}% margin ≈{' '}
+                  <span className="font-bold">{fmt(score.naPairingProfit)}</span>/mo
+                </>
+              }
+            >
+              <GameSlider field="naAttachRate" config={SLIDER_CONFIGS.naAttachRate} value={levers.naAttachRate} onChange={upd('naAttachRate')} />
+            </SliderWithCalc>
             <GameSlider field="naPairingPrice" config={SLIDER_CONFIGS.naPairingPrice} value={levers.naPairingPrice} onChange={upd('naPairingPrice')} />
             <GameSlider field="naPairingMargin" config={SLIDER_CONFIGS.naPairingMargin} value={levers.naPairingMargin} onChange={upd('naPairingMargin')} />
             <div className="mt-1 rounded bg-[#F0F7F4] px-2 py-1.5 text-xs text-[#2E7D5A]">
-              Adds <span className="stat-number font-bold">{fmt(score.naPairingProfit)}</span>/month
+              Total Lever 1: <span className="stat-number font-bold">{fmt(score.naPairingProfit)}</span>/month
             </div>
           </LeverSection>
 
-          {/* Lever 2 */}
-          <LeverSection number="2" title="Menu Engineering" color="#5B6B3A">
-            <GameSlider field="foodMarginUplift" config={SLIDER_CONFIGS.foodMarginUplift} value={levers.foodMarginUplift} onChange={upd('foodMarginUplift')} />
+          {/* Lever 2 — three sub-levers (Kasavana & Smith) */}
+          <LeverSection number="2" title="Menu Engineering (Kasavana & Smith)" color="#5B6B3A">
+            <div className="mb-3 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">2a. Star Promotion</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.starProfit)}
+                </span>
+              </div>
+              <GameSlider field="starPromotion" config={SLIDER_CONFIGS.starPromotion} value={levers.starPromotion} onChange={upd('starPromotion')} />
+            </div>
+
+            <div className="mb-3 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">2b. Plowhorse Re-engineering</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.plowhorseProfit)}
+                </span>
+              </div>
+              <GameSlider field="plowhorseEngineering" config={SLIDER_CONFIGS.plowhorseEngineering} value={levers.plowhorseEngineering} onChange={upd('plowhorseEngineering')} />
+            </div>
+
+            <div className="mb-2 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">2c. Puzzle Activation</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.puzzleProfit)}
+                </span>
+              </div>
+              <GameSlider field="puzzleActivation" config={SLIDER_CONFIGS.puzzleActivation} value={levers.puzzleActivation} onChange={upd('puzzleActivation')} />
+            </div>
+
             <div className="mt-1 rounded bg-[#F0F7F4] px-2 py-1.5 text-xs text-[#2E7D5A]">
-              Adds <span className="stat-number font-bold">{fmt(score.additionalFoodProfit)}</span>/month
+              Total Lever 2: <span className="stat-number font-bold">{fmt(score.additionalFoodProfit)}</span>/month
             </div>
           </LeverSection>
 
-          {/* Lever 3 */}
-          <LeverSection number="3" title="Welcome Drink + Dessert" color="#7B4A2D">
-            <GameSlider field="welcomeConversion" config={SLIDER_CONFIGS.welcomeConversion} value={levers.welcomeConversion} onChange={upd('welcomeConversion')} />
-            <GameSlider field="welcomePrice" config={SLIDER_CONFIGS.welcomePrice} value={levers.welcomePrice} onChange={upd('welcomePrice')} />
-            <GameSlider field="dessertAttachRate" config={SLIDER_CONFIGS.dessertAttachRate} value={levers.dessertAttachRate} onChange={upd('dessertAttachRate')} />
+          {/* H3: Menu Analysis Panel — between Lever 2 and Lever 3 */}
+          {narrative && (
+            <div className="mb-3 rounded-xl border border-[#E8E3DC] bg-[#FAF7F2] p-4">
+              <p className="mb-1 text-xs font-bold uppercase tracking-widest text-[#1B3A2D]">
+                Your Menu — Kasavana & Smith Analysis
+              </p>
+              <p className="mb-3 text-[10px] italic text-[#7A7A7A]">
+                These are the dishes your Lever 2 sliders act on.
+              </p>
+              <MenuCategoryBlock
+                icon="⭐"
+                title="Stars"
+                hint="high volume, high margin — push these"
+                items={stars}
+                highlighted={highlightStars}
+                borderColor="#2E7D5A"
+              />
+              <MenuCategoryBlock
+                icon="🐴"
+                title="Plowhorses"
+                hint="high volume, low margin — re-engineer these"
+                items={plowhorses}
+                highlighted={highlightPlowhorses}
+                borderColor="#D97706"
+              />
+              <MenuCategoryBlock
+                icon="🧩"
+                title="Puzzles"
+                hint="low volume, high margin — activate these"
+                items={puzzles}
+                highlighted={highlightPuzzles}
+                borderColor="#3B82A8"
+              />
+            </div>
+          )}
+
+          {/* Lever 3 — three sub-levers (Spend per Table) */}
+          <LeverSection number="3" title="Spend per Table" color="#7B4A2D">
+            {/* 3a. Premium NA Welcome Drink */}
+            <div className="mb-3 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">3a. Premium NA Welcome Drink</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.welcomeDrinkProfit)}
+                </span>
+              </div>
+              <SliderWithCalc
+                tooltip={`Alcohol-free welcome drink (€${levers.welcomePrice}, ~75% margin). Sets the tone and anchors guests toward NA choices later in the meal.`}
+                calc={
+                  <>
+                    = {welcomeDrinksPerMonth} drinks/mo × €{levers.welcomePrice} × 75% margin
+                  </>
+                }
+              >
+                <GameSlider field="welcomeConversion" config={SLIDER_CONFIGS.welcomeConversion} value={levers.welcomeConversion} onChange={upd('welcomeConversion')} />
+              </SliderWithCalc>
+              <GameSlider field="welcomePrice" config={SLIDER_CONFIGS.welcomePrice} value={levers.welcomePrice} onChange={upd('welcomePrice')} />
+            </div>
+
+            {/* 3b. Dessert Attach Rate */}
+            <div className="mb-3 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">3b. Dessert Attach Rate</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.additionalDessertProfit)}
+                </span>
+              </div>
+              <SliderWithCalc
+                tooltip="Extra percentage points of guests ordering dessert due to moral licensing after an NA choice (avg €12, 75% margin)."
+                calc={
+                  <>
+                    = {dessertCoversPerMonth} desserts/mo × €12 × 75% margin
+                  </>
+                }
+              >
+                <GameSlider field="dessertAttachRate" config={SLIDER_CONFIGS.dessertAttachRate} value={levers.dessertAttachRate} onChange={upd('dessertAttachRate')} />
+              </SliderWithCalc>
+            </div>
+
+            {/* 3c. Coffee / Tea Attach Rate */}
+            <div className="mb-2 rounded border border-[#E8E3DC] bg-[#FAF7F2] p-2.5">
+              <div className="mb-1 flex items-baseline justify-between">
+                <h5 className="text-xs font-bold text-[#1B3A2D]">3c. Coffee / Tea Attach Rate</h5>
+                <span className="stat-number text-[11px] font-semibold text-[#2E7D5A]">
+                  +{fmt(score.coffeeProfit)}
+                </span>
+              </div>
+              <SliderWithCalc
+                tooltip="% of guests who order coffee or tea after the meal. Highest margin in the house (~90%). Light seat-time cost above 70%."
+                calc={
+                  <>
+                    = {coffeeCoversPerMonth} × €4.50 × 90% margin ≈{' '}
+                    <span className="font-bold">{fmt(score.coffeeProfit)}</span>/mo
+                  </>
+                }
+              >
+                <GameSlider field="coffeeAttachRate" config={SLIDER_CONFIGS.coffeeAttachRate} value={levers.coffeeAttachRate} onChange={upd('coffeeAttachRate')} />
+              </SliderWithCalc>
+            </div>
+
             <div className="mt-1 rounded bg-[#F0F7F4] px-2 py-1.5 text-xs text-[#2E7D5A]">
-              Adds <span className="stat-number font-bold">{fmt(score.welcomePlusDesertProfit)}</span>/month
+              Total Lever 3: <span className="stat-number font-bold">{fmt(score.welcomePlusDesertProfit + score.coffeeProfit)}</span>/month
             </div>
           </LeverSection>
         </div>

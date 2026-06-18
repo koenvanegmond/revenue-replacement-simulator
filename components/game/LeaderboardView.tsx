@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { LeaderboardEntry } from '@/lib/game-types';
 import { getTopEntries, clearLeaderboard } from '@/lib/leaderboard';
+import { audioManager } from '@/lib/audio';
 
 interface Props {
   showReset?: boolean;
@@ -28,6 +29,20 @@ export function LeaderboardView({ showReset = false, compact = false }: Props) {
 
   useEffect(() => {
     setEntries(getTopEntries(10));
+  }, []);
+
+  // Crossfade into the leaderboard track on mount. The destination page
+  // handles its own audio when the user navigates away.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await audioManager.fadeOut(600);
+      if (cancelled) return;
+      audioManager.play('/audio/Leaderboard.mp3', { volume: 0.35 });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleClear() {

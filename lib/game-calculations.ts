@@ -24,10 +24,13 @@ export function buildSimulatorState(card: CardData, levers: GameLevers): Simulat
     naAttachRate: levers.naAttachRate,
     naPairingPrice: levers.naPairingPrice,
     naPairingMargin: levers.naPairingMargin,
-    foodMarginUplift: levers.foodMarginUplift,
+    starPromotion: levers.starPromotion,
+    plowhorseEngineering: levers.plowhorseEngineering,
+    puzzleActivation: levers.puzzleActivation,
     welcomeConversion: levers.welcomeConversion,
     welcomePrice: levers.welcomePrice,
     dessertAttachRate: levers.dessertAttachRate,
+    coffeeAttachRate: levers.coffeeAttachRate,
   };
 }
 
@@ -41,8 +44,14 @@ export interface GameScore {
   aggressiveLevers: (keyof GameLevers)[];
   // Per-lever breakdown
   naPairingProfit: number;
-  additionalFoodProfit: number;
+  starProfit: number;
+  plowhorseProfit: number;
+  puzzleProfit: number;
+  additionalFoodProfit: number; // sum of the three sub-levers
+  welcomeDrinkProfit: number;
+  additionalDessertProfit: number;
   welcomePlusDesertProfit: number;
+  coffeeProfit: number;
 }
 
 export function calcGameScore(card: CardData, levers: GameLevers): GameScore {
@@ -68,8 +77,14 @@ export function calcGameScore(card: CardData, levers: GameLevers): GameScore {
     recoveryPercent,
     aggressiveLevers,
     naPairingProfit: results.naPairingProfit,
+    starProfit: results.starProfit,
+    plowhorseProfit: results.plowhorseProfit,
+    puzzleProfit: results.puzzleProfit,
     additionalFoodProfit: results.additionalFoodProfit,
+    welcomeDrinkProfit: results.welcomeDrinkProfit,
+    additionalDessertProfit: results.additionalDessertProfit,
     welcomePlusDesertProfit: results.welcomeDrinkProfit + results.additionalDessertProfit,
+    coffeeProfit: results.coffeeProfit,
   };
 }
 
@@ -110,7 +125,10 @@ export function getCoachingSummary(score: GameScore, levers: GameLevers): string
   const upsellPct = (welcomePlusDesertProfit / total) * 100;
 
   const na_unused = isUnused('naAttachRate', levers) && isUnused('naPairingPrice', levers);
-  const menu_unused = isUnused('foodMarginUplift', levers);
+  const menu_unused =
+    isUnused('starPromotion', levers) &&
+    isUnused('plowhorseEngineering', levers) &&
+    isUnused('puzzleActivation', levers);
   const upsell_unused = isUnused('welcomeConversion', levers) && isUnused('dessertAttachRate', levers);
 
   if (na_unused && menu_unused) return 'You relied almost entirely on upselling. A strong NA pairing programme and menu engineering would have added more.';

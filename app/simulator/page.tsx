@@ -22,10 +22,13 @@ const initialState: SimulatorState = {
   naAttachRate: 20,
   naPairingPrice: 25,
   naPairingMargin: 65,
-  foodMarginUplift: 2,
+  starPromotion: 25,
+  plowhorseEngineering: 20,
+  puzzleActivation: 25,
   welcomeConversion: 25,
   welcomePrice: 8,
   dessertAttachRate: 2,
+  coffeeAttachRate: 60,
 };
 
 function reducer(state: SimulatorState, action: SimulatorAction): SimulatorState {

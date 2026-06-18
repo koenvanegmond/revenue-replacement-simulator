@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { audioManager } from '@/lib/audio';
 
 interface Props {
   onStart: () => void;
@@ -20,8 +21,24 @@ export function ShonenWelcome({ onStart }: Props) {
       raysRef.current.style.transform = `translate(${-x / 2}px, ${-y / 2}px) scale(2) rotate(${x}deg)`;
     }
     document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
+    // Autoplay may be blocked until first user gesture; retry on any pointer/key event.
+    audioManager.play('/audio/intro-music.mp3', { volume: 0.35 });
+    function kickAudio() {
+      audioManager.play('/audio/intro-music.mp3', { volume: 0.35 });
+    }
+    document.addEventListener('pointerdown', kickAudio, { once: true });
+    document.addEventListener('keydown', kickAudio, { once: true });
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('pointerdown', kickAudio);
+      document.removeEventListener('keydown', kickAudio);
+    };
   }, []);
+
+  function handleStart() {
+    // Music transition is handled by app/game/page.tsx based on screen state.
+    onStart();
+  }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-b from-[#87CEEB] via-[#B0E2FF] to-[#E0F7FF]">
@@ -40,7 +57,7 @@ export function ShonenWelcome({ onStart }: Props) {
             </Link>
           </nav>
           <button
-            onClick={onStart}
+            onClick={handleStart}
             className="border-b-4 border-blue-800 bg-blue-600 px-6 py-2 text-[13px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-500 active:scale-95"
           >
             ENTER THE CHALLENGE
@@ -105,7 +122,7 @@ export function ShonenWelcome({ onStart }: Props) {
 
           {/* CTA button */}
           <button
-            onClick={onStart}
+            onClick={handleStart}
             className="group relative overflow-hidden border-4 border-white bg-[#FF4500] px-16 py-6 text-2xl font-black italic tracking-tighter text-white shadow-[8px_8px_0px_rgba(0,0,0,0.2)] transition-all hover:-translate-y-1 hover:scale-110 active:translate-y-1 active:shadow-none"
           >
             <div className="absolute inset-0 -translate-x-full skew-x-12 bg-white/30 transition-transform duration-700 group-hover:translate-x-full" />
