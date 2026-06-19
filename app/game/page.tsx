@@ -109,9 +109,9 @@ export default function GamePage() {
         onClick={toggleFullscreen}
         aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}
-        className="fixed top-3 right-3 z-50 rounded-md bg-black/40 hover:bg-black/60 text-white px-2 py-1.5 text-xs backdrop-blur-sm transition"
+        className="fixed top-4 right-4 z-[9999] rounded-lg bg-slate-900/90 hover:bg-slate-900 text-white px-3 py-2 text-sm font-medium shadow-lg ring-1 ring-white/20 backdrop-blur-sm transition"
       >
-        {isFullscreen ? '⤡ Exit' : '⤢ Fullscreen'}
+        {isFullscreen ? '⤡ Exit fullscreen' : '⤢ Fullscreen'}
       </button>
       {state.screen === 'welcome' && (
         <ShonenWelcome onStart={() => go('restaurant-picker')} />
