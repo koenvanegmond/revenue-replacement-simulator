@@ -1,67 +1,86 @@
-// Single-track background audio manager for game mode.
-// Browsers block autoplay until the user interacts with the page — that's expected.
+// Background audio manager for game mode with preloading and true crossfade.
+// Tracks are preloaded on first interaction so subsequent screen changes start
+// the new track in parallel with the old one fading out — no audible gap.
+
+type TrackEntry = { el: HTMLAudioElement; fadeTimer: ReturnType<typeof setInterval> | null };
 
 class AudioManager {
-  private audio: HTMLAudioElement | null = null;
+  private tracks: Map<string, TrackEntry> = new Map();
   private currentSrc: string | null = null;
-  private fadeTimer: ReturnType<typeof setInterval> | null = null;
+  private targetVolume = 0.35;
 
   get nowPlaying(): string | null {
-    return this.audio && !this.audio.paused ? this.currentSrc : null;
+    const entry = this.currentSrc ? this.tracks.get(this.currentSrc) : null;
+    return entry && !entry.el.paused ? this.currentSrc : null;
   }
 
-  play(src: string, { volume = 0.4, loop = true }: { volume?: number; loop?: boolean } = {}) {
+  preload(srcs: string[]) {
     if (typeof window === 'undefined') return;
-    if (this.currentSrc === src && this.audio && !this.audio.paused) return;
-
-    this.stop();
-    const el = new Audio(src);
-    el.loop = loop;
-    el.volume = volume;
-    this.audio = el;
-    this.currentSrc = src;
-    el.play().catch(() => {
-      // Autoplay blocked — caller should retry after a user gesture.
+    srcs.forEach((src) => {
+      if (this.tracks.has(src)) return;
+      const el = new Audio(src);
+      el.loop = true;
+      el.preload = 'auto';
+      el.volume = 0;
+      this.tracks.set(src, { el, fadeTimer: null });
     });
+  }
+
+  play(src: string, { volume = 0.35, fadeMs = 400 }: { volume?: number; fadeMs?: number } = {}) {
+    if (typeof window === 'undefined') return;
+    this.targetVolume = volume;
+    this.preload([src]);
+    const incoming = this.tracks.get(src)!;
+
+    // Fade out any other playing track in parallel (true crossfade).
+    this.tracks.forEach((entry, otherSrc) => {
+      if (otherSrc !== src && !entry.el.paused) this.fadeTo(entry, 0, fadeMs, true);
+    });
+
+    // Start incoming immediately at 0 and fade up.
+    this.currentSrc = src;
+    incoming.el.currentTime = incoming.el.currentTime || 0;
+    incoming.el.volume = 0;
+    incoming.el.play().catch(() => {
+      // Autoplay blocked — caller retries on user gesture.
+    });
+    this.fadeTo(incoming, volume, fadeMs, false);
   }
 
   stop() {
-    if (this.fadeTimer) {
-      clearInterval(this.fadeTimer);
-      this.fadeTimer = null;
-    }
-    if (this.audio) {
-      this.audio.pause();
-      this.audio.src = '';
-      this.audio = null;
-    }
+    this.tracks.forEach((entry) => {
+      if (entry.fadeTimer) clearInterval(entry.fadeTimer);
+      entry.fadeTimer = null;
+      entry.el.pause();
+      entry.el.currentTime = 0;
+      entry.el.volume = 0;
+    });
     this.currentSrc = null;
   }
 
-  fadeOut(durationMs = 800): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.audio) {
-        resolve();
-        return;
+  // Legacy API kept for compatibility — callers can still await this, but
+  // play() now handles crossfade internally so most callers don't need it.
+  fadeOut(_durationMs = 400): Promise<void> {
+    return Promise.resolve();
+  }
+
+  private fadeTo(entry: TrackEntry, to: number, durationMs: number, pauseAtEnd: boolean) {
+    const el = entry.el;
+    if (entry.fadeTimer) clearInterval(entry.fadeTimer);
+    const from = el.volume;
+    const steps = 12;
+    const stepMs = Math.max(16, Math.floor(durationMs / steps));
+    let i = 0;
+    entry.fadeTimer = setInterval(() => {
+      i++;
+      const v = from + (to - from) * (i / steps);
+      el.volume = Math.max(0, Math.min(1, v));
+      if (i >= steps) {
+        if (entry.fadeTimer) clearInterval(entry.fadeTimer);
+        entry.fadeTimer = null;
+        if (pauseAtEnd) el.pause();
       }
-      const el = this.audio;
-      const startVolume = el.volume;
-      const steps = 16;
-      const stepMs = Math.max(20, Math.floor(durationMs / steps));
-      let i = 0;
-      if (this.fadeTimer) clearInterval(this.fadeTimer);
-      this.fadeTimer = setInterval(() => {
-        i++;
-        const v = startVolume * (1 - i / steps);
-        el.volume = Math.max(0, v);
-        if (i >= steps) {
-          if (this.fadeTimer) clearInterval(this.fadeTimer);
-          this.fadeTimer = null;
-          this.stop();
-          resolve();
-        }
-      }, stepMs);
-    });
+    }, stepMs);
   }
 }
 

@@ -28,23 +28,38 @@ const initialState: GameState = {
 
 export default function GamePage() {
   const [state, setState] = useState<GameState>(initialState);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
+  // Preload both tracks once so screen changes can crossfade instantly.
+  useEffect(() => {
+    audioManager.preload(['/audio/intro-music.mp3', '/audio/restaurant-music.mp3']);
+  }, []);
 
   // Crossfade background music based on screen. ShonenWelcome handles the
   // initial autoplay-on-gesture retry; this effect handles all subsequent
-  // transitions with a smooth fade-out before swapping tracks.
+  // transitions. play() now starts the new track in parallel with fading
+  // out the old one (true crossfade — no audible gap).
   useEffect(() => {
-    let cancelled = false;
     const target =
       state.screen === 'welcome' || state.screen === 'restaurant-picker'
         ? '/audio/intro-music.mp3'
         : '/audio/restaurant-music.mp3'; // challenge + result share one track
-    if (audioManager.nowPlaying === target) return; // already on the right track
-    (async () => {
-      await audioManager.fadeOut(500);
-      if (cancelled) return;
-      audioManager.play(target, { volume: 0.35 });
-    })();
-    return () => { cancelled = true; };
+    if (audioManager.nowPlaying === target) return;
+    audioManager.play(target, { volume: 0.35, fadeMs: 300 });
   }, [state.screen]);
 
   // Stop audio entirely on unmount (navigation away from /game).
@@ -90,6 +105,14 @@ export default function GamePage() {
 
   return (
     <>
+      <button
+        onClick={toggleFullscreen}
+        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}
+        className="fixed top-3 right-3 z-50 rounded-md bg-black/40 hover:bg-black/60 text-white px-2 py-1.5 text-xs backdrop-blur-sm transition"
+      >
+        {isFullscreen ? '⤡ Exit' : '⤢ Fullscreen'}
+      </button>
       {state.screen === 'welcome' && (
         <ShonenWelcome onStart={() => go('restaurant-picker')} />
       )}
