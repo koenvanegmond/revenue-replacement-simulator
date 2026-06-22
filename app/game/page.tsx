@@ -140,7 +140,7 @@ export default function GamePage() {
           onPlayAgain={handlePlayAgain}
         />
       )}
-      <FeedbackButton defaultMode="game" />
+      <FeedbackButton />
     </>
   );
 }

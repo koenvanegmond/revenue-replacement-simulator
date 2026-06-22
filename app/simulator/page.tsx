@@ -178,7 +178,7 @@ export default function SimulatorPage() {
         </p>
       </footer>
 
-      <FeedbackButton defaultMode="simulator" />
+      <FeedbackButton />
     </div>
   );
 }
