@@ -7,6 +7,7 @@ import { calcStep1, calcStep2, calcStep3 } from '@/lib/calculations';
 import { Step1 } from '@/components/Step1';
 import { Step2 } from '@/components/Step2';
 import { Step3 } from '@/components/Step3';
+import { FeedbackButton } from '@/components/FeedbackButton';
 
 // ─── Default values representative of a mid-scale Dutch fine-dining restaurant ──
 const initialState: SimulatorState = {
@@ -176,6 +177,8 @@ export default function SimulatorPage() {
           Data: CBS (2024), IWSR (2024), Prinsen et al. (2018), Morrison (1996)
         </p>
       </footer>
+
+      <FeedbackButton defaultMode="simulator" />
     </div>
   );
 }

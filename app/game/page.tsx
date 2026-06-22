@@ -9,6 +9,7 @@ import { RestaurantPicker } from '@/components/game/RestaurantPicker';
 import { Challenge } from '@/components/game/Challenge';
 import { GameResult } from '@/components/game/GameResult';
 import { audioManager } from '@/lib/audio';
+import { FeedbackButton } from '@/components/FeedbackButton';
 
 interface GameState {
   screen: GameScreen;
@@ -139,6 +140,7 @@ export default function GamePage() {
           onPlayAgain={handlePlayAgain}
         />
       )}
+      <FeedbackButton defaultMode="game" />
     </>
   );
 }
