@@ -6,6 +6,7 @@ import { CardData, GameLevers, AGGRESSIVE_THRESHOLD, DEFAULT_LEVERS } from '@/li
 import { GameScore, getLeverFeedback, getCoachingSummary } from '@/lib/game-calculations';
 import { addEntry } from '@/lib/leaderboard';
 import { fmt, fmtPct } from '@/lib/calculations';
+import { FeedbackCallout } from '@/components/FeedbackButton';
 
 interface Props {
   card: CardData;
@@ -211,6 +212,11 @@ export function GameResult({ card, levers, score, onPlayAgain }: Props) {
           </Link>
         </div>
       )}
+
+      {/* ── Feedback callout (prominent, between leaderboard + action buttons) ── */}
+      <div className="mb-6">
+        <FeedbackCallout />
+      </div>
 
       {/* ── Action buttons ── */}
       <div className="flex gap-3">
